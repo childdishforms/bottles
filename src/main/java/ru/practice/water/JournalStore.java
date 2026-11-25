@@ -100,28 +100,16 @@ public class JournalStore {
     }
 
     public void inspect(long id, boolean approved, String comment) throws SQLException {
-        if (comment.length() > 300 || (!approved && comment.isBlank())) {
-            throw new IllegalArgumentException("Для отклонения укажите причину. Длина комментария — до 300 символов.");
-        }
-        try (var db = connect(); var s = db.prepareStatement("""
-                INSERT INTO quality_check(batch_id,approved,comment)
-                SELECT id,?,? FROM batch WHERE id=? ON CONFLICT (batch_id) DO NOTHING
-                """)) {
-            s.setBoolean(1, approved);
-            s.setString(2, comment.strip());
-            s.setLong(3, id);
-            if (s.executeUpdate() != 1) throw new IllegalArgumentException("Партия отсутствует или уже прошла контроль.");
-        }
+        execute(new QualityInspection(id, approved, comment));
     }
 
     public void receive(long id) throws SQLException {
-        try (var db = connect(); var s = db.prepareStatement("""
-                INSERT INTO receipt(batch_id,quantity)
-                SELECT b.id,b.filled-b.rejected FROM batch b JOIN quality_check q ON q.batch_id=b.id
-                WHERE b.id=? AND q.approved AND b.filled>b.rejected ON CONFLICT (batch_id) DO NOTHING
-                """)) {
-            s.setLong(1, id);
-            if (s.executeUpdate() != 1) throw new IllegalArgumentException("Приёмка недоступна. Проверьте статус и количество годных бутылок.");
+        execute(new WarehouseReceipt(id));
+    }
+
+    private void execute(BatchOperation operation) throws SQLException {
+        try (Connection connection = connect()) {
+            operation.execute(connection);
         }
     }
 }
