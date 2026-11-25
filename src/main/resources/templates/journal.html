@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Журнал партий · Журнал розлива</title><link rel="stylesheet" href="/style.css">
+  <script src="/journal.js" defer></script>
+</head>
+<body>
+<header><div class="shell header-row">
+  <div class="brand"><span class="drop" aria-hidden="true"></span>Журнал розлива</div>
+  <form action="/logout" method="post"><input type="hidden" name="token" th:value="${token}"><button class="secondary">Выйти</button></form>
+</div></header>
+<main class="shell workspace">
+  <h1>Журнал партий</h1>
+  <p class="notice" role="status" th:if="${message}" th:text="${message}"></p>
+  <p class="notice error" role="alert" th:if="${error}" th:text="${error}"></p>
+  <details class="create panel" th:if="${batches != null}"><summary>Новая партия</summary>
+    <form action="/batches" method="post" class="batch-form">
+      <input type="hidden" name="token" th:value="${token}">
+      <label>Номер партии<input name="number" required maxlength="40" placeholder="Например, П-001"></label>
+      <label>Дата розлива<input name="day" type="date" required th:value="${today}"></label>
+      <label>Продукция<select name="product" required><option th:each="p : ${products}" th:value="${p.id}" th:text="|${p.name}, ${p.volume} мл|"></option></select></label>
+      <label>Разлито, шт.<input name="filled" type="number" required min="1" max="2147483647"></label>
+      <label>Брак, шт.<input name="rejected" type="number" required min="0" value="0" max="2147483647"></label>
+      <div class="form-end"><button>Добавить</button></div>
+    </form>
+  </details>
+  <section class="panel journal" aria-label="Список партий" th:if="${batches != null}">
+    <div class="toolbar"><label>Поиск по номеру<input id="search" type="search" placeholder="Номер партии"></label>
+      <label><span id="status-label">Статус</span><select id="status" aria-labelledby="status-label"><option value="">Все статусы</option><option>Ожидает контроля</option><option>Допущена</option><option>Отклонена</option><option>На складе</option></select></label>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Партия</th><th>Дата розлива</th><th>Продукция</th><th class="num">Разлито</th><th class="num">Брак</th><th class="num">Годных</th><th>Статус</th></tr></thead>
+    <tbody th:each="b : ${batches}" th:attr="data-number=${b.number},data-status=${b.status()}">
+      <tr><th scope="row" th:text="${b.number}"></th><td th:text="${#temporals.format(b.day,'dd.MM.yyyy')}"></td>
+        <td th:text="|${b.product}, ${b.volume} мл|"></td><td class="num" th:text="${b.filled}"></td><td class="num" th:text="${b.rejected}"></td><td class="num" th:text="${b.good()}"></td><td><span class="badge" th:text="${b.status()}"></span></td></tr>
+      <tr><td colspan="7" class="actions">
+        <details><summary th:text="${b.approved == null ? 'Контроль качества' : (b.available() > 0 ? 'Приёмка на склад' : 'Сведения о партии')}"></summary>
+          <form th:if="${b.approved == null}" th:action="@{/batches/{id}/inspection(id=${b.id})}" method="post" class="inline-form inspection">
+            <input type="hidden" name="token" th:value="${token}">
+            <label>Решение<select name="approved" required><option value="" selected disabled>Выберите</option><option value="true">Допустить</option><option value="false">Отклонить</option></select></label>
+            <label>Комментарий<input name="comment" maxlength="300" placeholder="Для отклонения укажите причину"></label><button>Сохранить решение</button>
+          </form>
+          <div th:if="${b.approved != null}" class="outcome">
+            <p th:text="|Решение от ${#temporals.format(b.checkedOn,'dd.MM.yyyy')}: ${b.approved ? 'допустить' : 'отклонить'}.|"></p>
+            <p th:if="${!#strings.isEmpty(b.comment)}" th:text="${b.comment}"></p>
+            <p th:if="${b.receivedOn != null}" th:text="|Принято ${#temporals.format(b.receivedOn,'dd.MM.yyyy')} · ${b.good()} шт.|"></p>
+            <p th:if="${b.approved and b.good() == 0}">Годных бутылок для приёмки нет.</p>
+            <form th:if="${b.available() > 0}" th:action="@{/batches/{id}/receipt(id=${b.id})}" method="post">
+              <input type="hidden" name="token" th:value="${token}"><button th:text="|Принять на склад · ${b.available()} шт.|"></button>
+            </form>
+          </div>
+        </details>
+      </td></tr>
+    </tbody></table></div>
+    <p class="empty" th:if="${#lists.isEmpty(batches)}">Партий пока нет. Добавьте первую партию.</p>
+    <p class="empty" id="no-matches" hidden>По заданным условиям партий нет.</p>
+  </section>
+</main></body></html>

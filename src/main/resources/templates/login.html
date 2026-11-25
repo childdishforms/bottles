@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход · Журнал розлива</title><link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-page">
+<main class="login-card">
+  <div class="brand"><span class="drop" aria-hidden="true"></span>Журнал розлива</div>
+  <h1>Вход</h1>
+  <form action="/login" method="post" class="login-form">
+    <input type="hidden" name="token" th:value="${token}">
+    <label>Логин<input name="login" maxlength="80" autocomplete="username" required></label>
+    <label>Пароль<input name="password" type="password" maxlength="256" autocomplete="current-password" required></label>
+    <p class="notice error" role="alert" th:if="${error}" th:text="${error}"></p>
+    <button type="submit">Войти</button>
+  </form>
+</main>
+</body></html>
